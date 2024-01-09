@@ -1,0 +1,45 @@
+export AWS_PROFILE=aws-demo
+AWS_REGION="ap-southeast-1"
+CLUSTER_NAME="eks-from-eksctl"
+ACCOUNT_ID="YOUR_ID"
+DD_API_KEY="YOUR_KEY"
+
+eksctl create cluster \
+    --name ${CLUSTER_NAME} \
+    --version 1.21 \
+    --region ${AWS_REGION} \
+    --nodegroup-name workers \
+    --node-type t3.large \
+    --nodes 1 \
+    --nodes-min 1 \
+    --nodes-max 2 \
+    --ssh-access \
+    --ssh-public-key ~/.ssh/aws-demo/eks-demo-workers.pem.pub \
+    --managed
+
+# eksctl delete cluster --name ${CLUSTER_NAME} --region ${AWS_REGION}
+
+
+
+mkdir sandbox && cd sandbox
+git clone https://github.com/kubernetes/examples.git
+k apply -f examples/guestbook
+cd ../
+
+
+
+# ref: https://github.com/kubernetes/ingress-nginx/tree/main/charts/ingress-nginx
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+kubectl create namespace ingress-nginx
+helm install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx
+
+# create ingress resource
+k apply -f sandbox/
+
+
+helm install datadog \
+  -f overrides.yaml \
+  --set datadog.apiKey=${DD_API_KEY} \
+  datadog/datadog
